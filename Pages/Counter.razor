@@ -1,0 +1,41 @@
+﻿@using Common
+@using Grpc.Core
+
+@page "/counter"
+
+<PageTitle>Counter</PageTitle>
+
+<h1>Counter</h1>
+
+<p role="status">Current count: @currentCount</p>
+<p role="status">Current serverReply: @serverReply</p>
+
+<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+
+@code{
+    [Inject] private Greeter.GreeterClient Client { get; set; }
+    
+    private int currentCount = 0;
+
+    private string serverReply = "";
+
+    private async Task IncrementCount()
+    {
+        currentCount++;
+        
+        try
+        {
+            HelloReply reply = await Client.SayHelloAsync(new HelloRequest() { Name = $"Counter: {currentCount}" });
+            serverReply = reply.Message;
+        }
+        catch (RpcException ex)
+        {
+            Console.Error.WriteLine($"gRPC Error: {ex.Status.Detail}");
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("Stream canceled");
+        }
+    }
+
+}

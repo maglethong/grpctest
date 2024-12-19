@@ -1,0 +1,59 @@
+﻿@using Common
+@using Google.Protobuf.WellKnownTypes
+@using Grpc.Core
+
+@page "/upstream"
+
+<PageTitle>Upstream</PageTitle>
+
+<h1>Upstream</h1>
+
+<p role="status">@upstreamReply</p>
+
+@implements IDisposable
+@code{
+    [Inject] private Greeter.GreeterClient Client { get; set; }
+    
+    private string upstreamReply = "";
+
+    private CancellationTokenSource? cts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Console.WriteLine("Initializing");
+        
+        // This blocks, but blazor is ok with this.
+        // This synchronized back to Main thread, while leaving the UI thread responsive.
+        await StartStream();
+        
+        Console.WriteLine("This line is only reached if stream throws an error!");
+    }
+
+    private async Task StartStream()
+    {
+        try
+        {
+            cts = new CancellationTokenSource();
+            AsyncServerStreamingCall<HelloReply> stream = Client.UpstreamHello(new Empty());
+            await foreach (HelloReply reply in stream.ResponseStream.ReadAllAsync())
+            {
+                upstreamReply = reply.Message;
+                StateHasChanged();
+            }
+        }
+        catch (RpcException ex)
+        {
+            Console.Error.WriteLine($"gRPC Error: {ex.Status.Detail}");
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("Stream canceled");
+        }
+    }
+
+    public void Dispose()
+    {
+        cts?.Cancel();
+        cts?.Dispose();
+    }
+}
